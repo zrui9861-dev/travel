@@ -1,0 +1,9 @@
+﻿# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# the generator's working data, not needed to run the app
+scratch/
+dist/
+node_modules/
