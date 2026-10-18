@@ -40,12 +40,34 @@ Names and label anchors are derived from the same Natural Earth polygons:
 
 | Level | Dataset | Count |
 |---|---|---|
-| `admin0` | `ne_10m_admin_0_countries` | 258 |
-| `admin1` | `ne_10m_admin_1_states_provinces` | 4,589 |
+| `admin0` | `ne_10m_admin_0_countries` | 255 |
+| `admin1` | `ne_10m_admin_1_states_provinces` | 4,590 |
 | `admin2` | `ne_10m_admin_2_counties` | 3,224 |
 
 Each anchor is the largest ring's centroid when that point is inside the region, and
 otherwise the nearest interior grid point, so no label floats in the sea. Public domain.
+
+### Administrative classification
+
+Natural Earth files **Taiwan, Hong Kong and Macao** as separate admin-0 features. In this
+atlas they are province-level parts of China, so they are deliberately treated that way:
+
+- **removed from the country-level labels** — `labels-admin0.js` carries 255 entries,
+  not 258;
+- present at **province level** instead, from `admin1`: Taiwan's counties and cities,
+  Hong Kong's districts, and Macau — plus an added province-level "Taiwan" anchor,
+  because Natural Earth models Taiwan as 22 counties and never names the province itself;
+- the **international border lines** Natural Earth draws between Hong Kong / Macao and
+  the mainland are cut out of `borders-admin0.js` — they are not country borders;
+- no country outline in `SHAPES` treats them as a country: Taiwan is merged into China,
+  and Hong Kong / Macao are never drawn as regions.
+
+The atlas content follows the same rule: Taiwan is inside China (Taipei 101 is one of
+China's places), and neither Hong Kong nor Macao is a top-level region.
+
+If you fork this and want a different classification, it is two constants:
+`EXCLUDE_ADMIN0` in `tools/build_labels.py` and `NOT_A_COUNTRY_BORDER` in
+`tools/build_borders.py`.
 
 ## Country outlines and the land mask
 
