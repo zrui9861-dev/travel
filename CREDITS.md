@@ -1,6 +1,6 @@
 # Credits and licenses
 
-The **code** in this repository is MIT licensed (see [LICENSE](LICENSE)).
+The **code** in this repository is MIT licensed (see [LICENSE](LICENSE)); [NOTICE](NOTICE) says in one page which files that covers and which it does not.
 
 The **imagery and geodata** are not, and carry their own terms. This file lists
 them so a fork stays compliant.

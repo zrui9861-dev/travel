@@ -1,0 +1,34 @@
+NOTICE
+======
+
+TerraPortal — copyright (c) 2026 TerraPortal contributors
+
+The file LICENSE contains the MIT license, which covers:
+
+  * index.html, serve.js and the build tooling
+  * the launchers: start.cmd, start.command, start.sh, create-desktop-shortcut.cmd,
+    serve.js, macos/TerraPortal.app, linux/install.sh
+  * the generated boundary and label data in data/ (derived from Natural Earth,
+    which is public domain)
+  * the atlas text: place names, blurbs, tips and country facts
+
+The MIT license does NOT cover the photographs in assets/. They keep their own
+licenses:
+
+  * the majority come from Pexels under the Pexels License — free to use,
+    including commercially, but you may not sell unaltered copies of a photo on
+    its own, and you may not imply the photographer endorses your project
+  * 103 images come from Wikimedia Commons, mostly CC BY-SA 4.0 or public
+    domain; the cards that use them are captioned "Photograph from Wikimedia
+    Commons" in the app, and that caption is the attribution this build ships
+    with
+
+Place lookup for somewhere outside the atlas uses OpenStreetMap Nominatim.
+Data © OpenStreetMap contributors, ODbL.
+
+Full per-source detail, and what to do if you want to redistribute or sell, is in
+CREDITS.md. If you redistribute this project, keep CREDITS.md and this NOTICE
+alongside the images.
+
+If you are publishing a derivative, the simplest safe path is to replace assets/
+with your own photography.

@@ -181,12 +181,25 @@ The atlas would rather tell you the truth than look complete:
 
 **Code: MIT.** See [LICENSE](LICENSE).
 
-Place lookup for somewhere outside the atlas uses
-[OpenStreetMap Nominatim](https://nominatim.org/) — data © OpenStreetMap contributors,
-ODbL. It is called only when you save or leave a place field that the built-in index
-cannot resolve.
+That covers `index.html`, `serve.js`, the launchers, the generated boundary and label
+data, and the atlas text. In short: use it, change it, ship it, sell it — just keep the
+copyright notice.
 
-**Photographs and geodata are not MIT** — they keep their own licenses. Read
-[CREDITS.md](CREDITS.md) before redistributing. Short version: Natural Earth is public
-domain, Pexels has a permissive license with some restrictions, and the Wikimedia
-images are CC BY-SA and need attribution.
+**The photographs are not MIT.** They keep their own licenses, so the project as a whole
+is *source-available under MIT with third-party assets*:
+
+| What | License |
+|---|---|
+| code, boundary data, atlas text | MIT |
+| ~1,015 photographs | Pexels License — free including commercial, but you may not resell an unaltered photo on its own |
+| 103 photographs | Wikimedia Commons, mostly CC BY-SA 4.0 — attribution required, and the app captions those cards |
+| Natural Earth geodata | public domain |
+| OpenStreetMap Nominatim lookups | ODbL, © OpenStreetMap contributors |
+
+[NOTICE](NOTICE) is the short version of exactly which files are which;
+[CREDITS.md](CREDITS.md) has the per-source detail. **If you are publishing a
+derivative, the simplest safe path is to replace `assets/` with your own photography.**
+
+Place lookup for somewhere outside the atlas uses
+[OpenStreetMap Nominatim](https://nominatim.org/). It is called only when you save or
+leave a place field that the built-in index cannot resolve.

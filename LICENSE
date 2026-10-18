@@ -19,10 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-This license covers the source code, styles, and the generated boundary data in
-data/. It does NOT cover the photographs in assets/ — those remain under their
-own licenses, listed in CREDITS.md. If you redistribute this project, keep
-CREDITS.md alongside the images.
