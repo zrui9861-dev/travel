@@ -61,16 +61,27 @@ Then the part this edition adds: **record where you have been**.
 | Your system | Double-click this | What happens |
 |---|---|---|
 | **Windows** | `start.cmd` | starts a local server and opens your browser |
-| **macOS** | `start.command` | same — first time, right-click → **Open** (the file is unsigned) |
-| **Linux** | `start.sh` | same (`chmod +x start.sh` once) |
+| **macOS** | `macos/TerraPortal.app` | a real app bundle — same, in a Terminal window |
+| **Linux** | `./linux/install.sh` once, then the menu | adds an application entry with an icon |
 
 Each launcher looks for a runtime in this order: **Node → Python 3 → Python**, and tests
 it by *running* it — `python` on `PATH` is very often the Microsoft Store stub, which
 opens the Store instead of serving anything. With neither installed it opens
 `index.html` directly, which also works.
 
-Want it on the Desktop? Run **`create-desktop-shortcut.cmd`** once (Windows) and a
-`TerraPortal` shortcut appears there.
+**Windows** — run `create-desktop-shortcut.cmd` once and a `TerraPortal` shortcut appears
+on the Desktop.
+
+**macOS** — the bundle is unsigned, so the first launch needs right-click → **Open**
+(or `xattr -dr com.apple.quarantine macos/TerraPortal.app`). It opens a Terminal window
+running the server, so closing that window stops it.
+
+**Linux** — `linux/install.sh` writes `~/.local/share/applications/terraportal.desktop`,
+installs the icon into the hicolor theme and adds a Desktop shortcut. `--remove` undoes
+it; `--no-desktop` skips the Desktop copy.
+
+The plain scripts also work anywhere: `start.cmd` (Windows), `start.command` (macOS),
+`start.sh` (Linux).
 
 ```bash
 # what the launchers actually run:
@@ -116,7 +127,9 @@ To publish, drop the whole folder on GitHub Pages, Netlify, or any static host.
 | `data/labels-admin2.js` | 3,224 county names, 95 KB |
 | `serve.js` | the one-click local server, plain Node, no dependencies |
 | `start.cmd` / `.command` / `.sh` | the launchers, one per platform |
-| `create-desktop-shortcut.cmd` | puts a TerraPortal shortcut on the Desktop |
+| `create-desktop-shortcut.cmd` | puts a TerraPortal shortcut on the Desktop (Windows) |
+| `macos/TerraPortal.app` | native macOS app bundle, own icon, opens Terminal |
+| `linux/install.sh` | adds a Linux application entry and icon; `--remove` undoes it |
 | `favicon.ico` | the globe mark, also used as the shortcut icon |
 
 There is **no framework and no bundler**. The page is one `<script>`: a canvas renderer

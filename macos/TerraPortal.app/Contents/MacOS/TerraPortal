@@ -1,0 +1,39 @@
+#!/bin/bash
+# ---------------------------------------------------------------------------
+#  TerraPortal.app launcher
+#
+#  Double-clicking the app runs this. It works out where the repository is and
+#  opens Terminal running start.command, so the local server has a visible
+#  window you can close to stop it.
+#
+#  The app lives at <repo>/macos/TerraPortal.app, so the repository root is five
+#  levels up from this script.
+# ---------------------------------------------------------------------------
+set -u
+
+HERE="$(cd "$(dirname "$0")" && pwd)"          # <repo>/macos/TerraPortal.app/Contents/MacOS
+BUNDLE="$(dirname "$(dirname "$HERE")")"       # <repo>/macos/TerraPortal.app
+MACOS_DIR="$(dirname "$BUNDLE")"               # <repo>/macos
+ROOT="$(dirname "$MACOS_DIR")"                 # <repo>
+
+alert() {
+  /usr/bin/osascript -e "display alert \"TerraPortal\" message \"$1\" as warning" >/dev/null 2>&1
+  exit 1
+}
+
+if [ ! -f "$ROOT/serve.js" ] || [ ! -f "$ROOT/index.html" ]; then
+  alert "TerraPortal.app has been moved out of the TerraPortal folder. Put it back inside the repository folder and try again."
+fi
+
+if [ ! -x "$ROOT/start.command" ]; then
+  /bin/chmod +x "$ROOT/start.command" 2>/dev/null || true
+fi
+
+# Preferred: hand off to Terminal so there is a visible stop button.
+if /usr/bin/osascript -e "tell application \"Terminal\" to do script \"cd '$ROOT' && ./start.command\"" >/dev/null 2>&1; then
+  exit 0
+fi
+
+# Fallback if automation permission was refused.
+/usr/bin/open -a Terminal "$ROOT/start.command" >/dev/null 2>&1 || \
+  alert "Could not open Terminal. Run start.command in the TerraPortal folder manually."
