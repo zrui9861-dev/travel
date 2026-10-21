@@ -3277,7 +3277,7 @@ const I18N = {
     'drawer.sub': 'Scroll the list. Every place has its own photograph, best months and a local tip.',
     'drawer.close': 'Close',
     'drawer.region': 'Region {n} of {total}',
-    'drawer.cue': 'Scroll, tap or swipe down · what is inside',
+    'drawer.cue': 'Swipe up or tap · what is inside',
     'drawer.open': 'See the places inside',
     'place.onGlobe': 'Find on the globe',
     'place.enter': 'Enter {name}',
@@ -3396,7 +3396,7 @@ const I18N = {
     'drawer.sub': '下滑浏览。每个景点都有自己的照片、最佳月份和一条本地经验。',
     'drawer.close': '关闭',
     'drawer.region': '第 {n} / {total} 个地区',
-    'drawer.cue': '下滑、点击或滑动 · 查看境内景点',
+    'drawer.cue': '上滑或点击 · 查看境内景点',
     'drawer.open': '看境内热门景点',
     'place.onGlobe': '在地球上定位',
     'place.enter': '进入{name}',
@@ -14502,7 +14502,7 @@ function wireSheet() {
   const cueBtn = $('drawer-cue');
   if (cueBtn) cueBtn.addEventListener('click', () => openDrawer(true));
 
-  // swipe down anywhere on the stage to open, swipe up at the top of the list to close
+  // swipe up anywhere on the stage to open, swipe back down at the top of the list to close
   let swipeY = 0, swipeX = 0, swipeOk = false;
   document.addEventListener('touchstart', e => {
     swipeOk = false;
@@ -14530,8 +14530,10 @@ function wireSheet() {
     const d = $('places-drawer');
     if (!d) return;
     const open = d.classList.contains('is-open');
-    if (!open && dy > 0) openDrawer(true);
-    else if (open && dy < 0) openDrawer(false);
+    // a sheet that rises from the bottom edge belongs to an upward swipe: pull up to
+    // open, push back down to close once the list is at its top again
+    if (!open && dy < 0) openDrawer(true);
+    else if (open && dy > 0) openDrawer(false);
   }, { passive: true });
 
   $('sheet-close').addEventListener('click', closeSheet);
