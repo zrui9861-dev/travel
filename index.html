@@ -659,7 +659,7 @@ kbd{font-family:var(--ui);font-size:10.5px;border:1px solid var(--line);border-b
   .sheet-head{gap:9px;padding:11px 13px;flex-wrap:wrap}
   .sheet-brand p{display:none}
   .tabs button{padding:7px 12px;font-size:12.5px}
-  .pane.is-on[data-pane="explore"]{flex-direction:column}
+  .pane.is-on[data-pane="explore"]{flex-direction:column;overflow:hidden;min-height:0}
   .globe-wrap{flex:0 0 44vh;min-height:240px}
   .spot-panel{flex:1 1 auto;border-left:0;border-top:1px solid var(--line)}
   .spot-card h4{font-size:22px}
@@ -4707,8 +4707,9 @@ function render(first) {
     b.classList.toggle('active', on);
     b.setAttribute('aria-current', on ? 'true' : 'false');
   });
-  const activeBtn = els.list.querySelector('.planet-item.active');
-  if (activeBtn && activeBtn.scrollIntoView) activeBtn.scrollIntoView({ block: 'nearest' });
+  // the rail scrolls itself; on a phone it is display:none, and scrolling a hidden
+  // element's box is what used to jump the sheet around
+  scrollWithin(els.list, els.list.querySelector('.planet-item.active'));
   els.strip.querySelectorAll('.dest-chip').forEach((c, i) => {
     const on = ORDER[i] === current;
     c.classList.toggle('active', on);
@@ -14064,6 +14065,26 @@ function openDrawer(open) {
   }
 }
 
+/* Bring `el` into view inside `box` by changing only box.scrollTop. Returns false when
+   there is nothing to do — including when the box is hidden, which is the phone case for
+   the destination rail. */
+function scrollWithin(box, el, pad) {
+  if (!box || !el) return false;
+  if (!box.clientHeight || !box.clientHeight) return false;
+  pad = pad === undefined ? 8 : pad;
+  const b = box.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  if (r.top < b.top + pad) {
+    box.scrollTop -= (b.top - r.top) + pad;
+    return true;
+  }
+  if (r.bottom > b.bottom - pad) {
+    box.scrollTop += (r.bottom - b.bottom) + pad;
+    return true;
+  }
+  return false;
+}
+
 function globeFocus(i, quiet) {
   const list = globeSpots();
   if (!list.length) return;
@@ -14075,8 +14096,9 @@ function globeFocus(i, quiet) {
   globe.tLat = s.lat;
   renderSpotCard(s);
   if (!quiet) renderSpotList(list);
-  const el = document.querySelector('.spot-item[data-i="' + i + '"]');
-  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+  // Scroll the list itself, never the page: scrollIntoView also moves outer
+  // scrollers, which on a phone pushed the globe half off the screen.
+  scrollWithin($('spot-list'), document.querySelector('.spot-item[data-i="' + i + '"]'));
 }
 
 function refreshSheetText() {
