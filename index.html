@@ -659,13 +659,15 @@ kbd{font-family:var(--ui);font-size:10.5px;border:1px solid var(--line);border-b
   .sheet-head{gap:9px;padding:11px 13px;flex-wrap:wrap}
   .sheet-brand p{display:none}
   .tabs button{padding:7px 12px;font-size:12.5px}
-  .pane.is-on[data-pane="explore"]{flex-direction:column;overflow:hidden;min-height:0}
-  .globe-wrap{flex:0 0 44vh;min-height:240px}
-  /* the panel is the scroller: the card can be taller than the space left under the
-     globe, which left the place list with no height at all */
-  .spot-panel{flex:1 1 auto;border-left:0;border-top:1px solid var(--line);
-    overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-  .spot-list{overflow:visible;flex:0 0 auto;min-height:0}
+  /* One ordinary scroll container for the whole pane, with the globe pinned by
+     sticky. Nested flex scrollers depend on how the heights resolve and are the part
+     iOS gets wrong; a single scrolling block is not. */
+  .pane.is-on[data-pane="explore"]{display:block;overflow-y:auto;overflow-x:hidden;
+    min-height:0;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
+  .globe-wrap{position:sticky;top:0;z-index:3;width:100%;height:44vh;min-height:240px;
+    background:#131317}
+  .spot-panel{display:block;border-left:0;border-top:1px solid var(--line);overflow:visible}
+  .spot-list{overflow:visible;min-height:0}
   .spot-card h4{font-size:22px}
   .globe-legend{bottom:30px;gap:5px}
   .legend-chip{font-size:10px;padding:4px 8px}
