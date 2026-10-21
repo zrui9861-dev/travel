@@ -2605,6 +2605,94 @@ const ASSET = {
   "w-zw": "assets/w-zw.webp"
 };
 
+/* The zoom band over which the land crossfades from the dot mask to real coastlines. */
+const VECTOR_LAND = [1.9, 2.4];
+
+/* Coastlines at full detail, fetched the first time they are needed. Same delta encoding
+   as the border layers, so the same decoder reads it. */
+const LAND_POLY = { state: 'idle', xyz: null, starts: null, promise: null };
+function loadLandPoly() {
+  if (LAND_POLY.state === 'ready') return Promise.resolve(LAND_POLY);
+  if (LAND_POLY.state === 'loading') return LAND_POLY.promise;
+  LAND_POLY.state = 'loading';
+  LAND_POLY.promise = new Promise((resolve, reject) => {
+    const tag = document.createElement('script');
+    tag.src = BORDER.dir + 'land.js';
+    tag.async = true;
+    tag.onload = () => {
+      const payload = window.TP_LAND;
+      if (!payload) { LAND_POLY.state = 'error'; reject(new Error('no payload')); return; }
+      const d = decodeBorders(payload);
+      LAND_POLY.xyz = d.xyz;
+      LAND_POLY.starts = d.starts;
+      LAND_POLY.state = 'ready';
+      globeMark();
+      resolve(LAND_POLY);
+    };
+    tag.onerror = () => { LAND_POLY.state = 'error'; reject(new Error('load failed')); };
+    document.head.appendChild(tag);
+  });
+  return LAND_POLY.promise;
+}
+
+let SCRATCH = new Float32Array(16384);
+
+/* Filled land: every ring that is fully on the near side, in one path. A ring that
+   crosses the limb has no sensible screen polygon, and one far wider than the canvas has
+   wrapped the antimeridian - both are skipped rather than smeared across the sphere.
+
+   The whole thing runs inside save/restore: the canvas is shared with the graticule, the
+   labels and the limb shading, and a globalAlpha or fillStyle left behind by any of them
+   would silently make this fill invisible. */
+function drawLandFill(c, cx, cy, r, ca, sa, cb, sb, alpha) {
+  const xyz = LAND_POLY.xyz, starts = LAND_POLY.starts;
+  if (!xyz || !starts || alpha <= 0) return;
+  const total = xyz.length / 3;
+  const limit = Math.max(c.canvas.width, c.canvas.height) * 2.2;
+  c.save();
+  c.globalAlpha = alpha;
+  c.beginPath();
+  for (let k = 0; k < starts.length; k++) {
+    const from = starts[k];
+    const to = k + 1 < starts.length ? starts[k + 1] : total;
+    const count = to - from;
+    if (count < 3) continue;
+    if (SCRATCH.length < count * 2) SCRATCH = new Float32Array(count * 2);
+    let ok = true, minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let i = 0, w = 0; i < count; i++, w += 2) {
+      const b3 = (from + i) * 3;
+      const x0 = xyz[b3], y0 = xyz[b3 + 1], z0 = xyz[b3 + 2];
+      const x1 = x0 * ca + z0 * sa;
+      const z1 = -x0 * sa + z0 * ca;
+      const y2 = y0 * cb - z1 * sb;
+      const z2 = y0 * sb + z1 * cb;
+      if (z2 <= 0.02) { ok = false; break; }
+      const sx = cx + x1 * r, sy = cy - y2 * r;
+      if (!isFinite(sx) || !isFinite(sy)) { ok = false; break; }
+      SCRATCH[w] = sx;
+      SCRATCH[w + 1] = sy;
+      if (sx < minX) minX = sx;
+      if (sx > maxX) maxX = sx;
+      if (sy < minY) minY = sy;
+      if (sy > maxY) maxY = sy;
+    }
+    if (!ok || maxX - minX > limit || maxY - minY > limit) continue;
+    for (let i = 0; i < count; i++) {
+      if (i === 0) c.moveTo(SCRATCH[0], SCRATCH[1]);
+      else c.lineTo(SCRATCH[i * 2], SCRATCH[i * 2 + 1]);
+    }
+    c.closePath();
+  }
+  const fill = BORDER.on.admin0 ? 'rgba(150,186,232,.34)' : 'rgba(150,186,232,.55)';
+  c.fillStyle = fill;
+  c.fill('nonzero');
+  // a hairline of the fill colour closes the seams between neighbouring countries
+  c.strokeStyle = fill;
+  c.lineWidth = 1;
+  c.stroke();
+  c.restore();
+}
+
 /* Country outlines for the portal window: "<bbox>|<ring>|<ring>", each ring a run
    of base36 pairs (first absolute, rest deltas +512) on a 0..1023 grid. */
 const SHAPES = {
@@ -13562,22 +13650,32 @@ function globeDraw() {
     c.stroke();
   }
 
-  // land dots — one fill style, depth comes from the limb shading below
-  const L = LAND_XYZ;
-  // Held at a constant pixel size the dots spread apart as you zoom and the land turns
-  // into scattered specks. They keep their familiar size at 1x and grow faster than the
-  // sphere from there, so the gaps close instead of opening up.
-  const size = Math.max(1.2, g.baseR * 0.0125 + Math.max(0, r - g.baseR) * 0.029);
-  c.fillStyle = BORDER.on.admin0 ? 'rgba(176,209,248,.52)' : 'rgba(176,209,248,.95)';
-  for (let i = 0; i < L.length; i += 3) {
-    const x0 = L[i], y0 = L[i + 1], z0 = L[i + 2];
-    const x1 = x0 * ca + z0 * sa;
-    const z1 = -x0 * sa + z0 * ca;
-    const y2 = y0 * cb - z1 * sb;
-    const z2 = y0 * sb + z1 * cb;
-    if (z2 <= 0.03) continue;
-    c.fillRect(cx + x1 * r, cy - y2 * r, size, size);
+  /* Land. Below the crossfade it is the dot mask, which is what gives the globe its
+     character at a distance; above it the mask has no detail left, so the real
+     coastlines take over. The layer loads on demand, and until it arrives the dots stay. */
+  const vT = clamp((g.zoom - VECTOR_LAND[0]) / (VECTOR_LAND[1] - VECTOR_LAND[0]), 0, 1);
+  if (vT > 0 && LAND_POLY.state === 'idle') loadLandPoly();
+  const wantVectors = vT > 0 && LAND_POLY.state === 'ready';
+  if (!wantVectors || vT < 1) {
+    const L = LAND_XYZ;
+    // Held at a constant pixel size the dots spread apart as you zoom and the land turns
+    // into scattered specks. They keep their familiar size at 1x and grow faster than the
+    // sphere from there, so the gaps close instead of opening up.
+    const size = Math.max(1.2, g.baseR * 0.0125 + Math.max(0, r - g.baseR) * 0.029);
+    c.globalAlpha = wantVectors ? 1 - vT : 1;
+    c.fillStyle = BORDER.on.admin0 ? 'rgba(176,209,248,.52)' : 'rgba(176,209,248,.95)';
+    for (let i = 0; i < L.length; i += 3) {
+      const x0 = L[i], y0 = L[i + 1], z0 = L[i + 2];
+      const x1 = x0 * ca + z0 * sa;
+      const z1 = -x0 * sa + z0 * ca;
+      const y2 = y0 * cb - z1 * sb;
+      const z2 = y0 * sb + z1 * cb;
+      if (z2 <= 0.03) continue;
+      c.fillRect(cx + x1 * r, cy - y2 * r, size, size);
+    }
+    c.globalAlpha = 1;
   }
+  if (wantVectors) drawLandFill(c, cx, cy, r, ca, sa, cb, sb, vT);
 
   // boundary layers sit above the land dots but inside the clip, so the limb
   // shading at the edge dims them along with everything else on the sphere
