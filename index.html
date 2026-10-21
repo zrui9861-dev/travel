@@ -663,7 +663,10 @@ kbd{font-family:var(--ui);font-size:10.5px;border:1px solid var(--line);border-b
      sticky. Nested flex scrollers depend on how the heights resolve and are the part
      iOS gets wrong; a single scrolling block is not. */
   .pane.is-on[data-pane="explore"]{display:block;overflow-y:auto;overflow-x:hidden;
-    min-height:0;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
+    height:100%;max-height:100%;min-height:0;overscroll-behavior-y:contain;
+    -webkit-overflow-scrolling:touch;touch-action:pan-y;
+    /* the globe is pinned over the top of this scroller, so content must clear it */
+    scroll-padding-top:calc(44vh + 6px)}
   .globe-wrap{position:sticky;top:0;z-index:3;width:100%;height:44vh;min-height:240px;
     background:#131317}
   .spot-panel{display:block;border-left:0;border-top:1px solid var(--line);overflow:visible}
@@ -14105,16 +14108,19 @@ function scrollWithin(box, el, pad) {
   if (!box || !el) return false;
   if (!box.clientHeight) return false;
   pad = pad === undefined ? 8 : pad;
+  // a pinned child (the globe) covers the top of the scroller: scroll-padding-top says
+  // how much of the top is unusable, and the arithmetic has to respect it
+  const padTop = parseFloat(getComputedStyle(box).scrollPaddingTop) || pad;
   const b = box.getBoundingClientRect();
   const r = el.getBoundingClientRect();
   // taller than the box: show its top, so the title comes first and the rest is a
   // natural scroll away rather than landing the reader at the bottom of it
-  if (r.height > b.height - pad * 2) {
-    box.scrollTop += (r.top - b.top) - pad;
+  if (r.height > b.height - padTop - pad) {
+    box.scrollTop += (r.top - b.top) - padTop;
     return true;
   }
-  if (r.top < b.top + pad) {
-    box.scrollTop -= (b.top - r.top) + pad;
+  if (r.top < b.top + padTop) {
+    box.scrollTop -= (b.top + padTop) - r.top;
     return true;
   }
   if (r.bottom > b.bottom - pad) {
@@ -14149,7 +14155,14 @@ function globeFocus(i, quiet) {
   globe.tLon = -s.lon;
   globe.tLat = s.lat;
   renderSpotCard(s);
-  if (!quiet) renderSpotList(list);
+  if (!quiet) {
+    renderSpotList(list);
+  } else {
+    // move the marker instead of rebuilding a thousand rows on every tap
+    document.querySelectorAll('.spot-item.is-on').forEach(el => el.classList.remove('is-on'));
+    const cur = document.querySelector('.spot-item[data-i="' + i + '"]');
+    if (cur) cur.classList.add('is-on');
+  }
   // Bring the selected place into view by scrolling only its own container. On a phone
   // the detail card is what changed, so that is what to reveal; on a desktop the card is
   // always visible and the list item underneath it is the one that moves.
@@ -14340,17 +14353,34 @@ function wireSheet() {
     });
   });
 
-  // the wheel on the stage reveals what is inside the current region
+  /* Whatever the pointer is over owns the wheel. A list scrolls itself and the stage
+     opens the drawer; without this, one notch scrolled the country rail and opened the
+     drawer at the same time. */
+  function wheelOwner(e) {
+    let node = e.target;
+    if (!node || node.nodeType !== 1) return null;   // dispatched on window or document
+    while (node && node !== document.body && node !== document.documentElement) {
+      const st = getComputedStyle(node);
+      if ((st.overflowY === 'auto' || st.overflowY === 'scroll') &&
+          node.scrollHeight > node.clientHeight + 1) return node;
+      node = node.parentElement;
+    }
+    return null;
+  }
+
   window.addEventListener('wheel', e => {
     if (worldSheetOpen) return;
     if (transitionLayer.classList.contains('is-open')) return;
     const d = $('places-drawer');
     if (!d) return;
+    const owner = wheelOwner(e);
     if (!d.classList.contains('is-open')) {
+      if (owner) return;                    // that list is what the wheel is for
       if (e.deltaY > 10) { e.preventDefault(); openDrawer(true); }
       return;
     }
     const list = $('drawer-list');
+    if (owner && owner !== list) return;    // some other scroller has the wheel
     if (list && list.scrollTop <= 1 && e.deltaY < -10) { e.preventDefault(); openDrawer(false); }
   }, { passive: false });
 
@@ -14514,8 +14544,12 @@ function wireSheet() {
     const hit = globeHitTest(e.clientX - r.left, e.clientY - r.top);
     if (hit < 0) return;
     const s = globeSpots()[hit];
-    if (hit === globe.focus && s && s.region) { closeSheet(); travel(s.region); }
-    else globeFocus(hit);
+    // A finger landing on the pin that is already selected used to close the sheet and
+    // travel, which reads as the panel flashing away. Travelling has its own button on
+    // the card, so on a touch screen a tap only ever selects.
+    const finger = window.matchMedia && window.matchMedia('(hover:none)').matches;
+    if (!finger && hit === globe.focus && s && s.region) { closeSheet(); travel(s.region); }
+    else globeFocus(hit, true);
   });
 
   gc.addEventListener('pointercancel', e => {
