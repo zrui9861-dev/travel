@@ -2622,7 +2622,7 @@ function loadLandPoly() {
   LAND_POLY.state = 'loading';
   LAND_POLY.promise = new Promise((resolve, reject) => {
     const tag = document.createElement('script');
-    tag.src = BORDER.dir + 'land.js';
+    tag.src = dataUrl('land.js');
     tag.async = true;
     tag.onload = () => {
       const payload = window.TP_LAND;
@@ -2919,6 +2919,12 @@ const GEO = Object.create(null);
 const GEO_STATE = Object.create(null);
 const GEO_DIR = 'data/geo/';
 
+/* Data files keep their names between builds and are cached for a day, so a rebuild would
+   otherwise leave browsers on the previous copy. The build stamps this with a hash of the
+   data directory and every lazily loaded layer URL carries it. */
+const DATA_VER = '97359d971c';
+function dataUrl(rel) { return 'data/' + rel + '?v=' + DATA_VER; }
+
 /* The border encoding, decoded back to lon/lat rings. */
 function decodeGeo(payload) {
   const rings = [];
@@ -2948,7 +2954,7 @@ function loadRegionGeo(code) {
   if (!code || GEO[code] || GEO_STATE[code]) return;
   GEO_STATE[code] = 'loading';
   const tag = document.createElement('script');
-  tag.src = GEO_DIR + code + '.js';
+  tag.src = dataUrl('geo/' + code + '.js');
   tag.async = true;
   tag.onload = () => {
     const payload = window['TP_GEO_' + code];
@@ -15044,7 +15050,7 @@ function loadBorderLayer(id) {
   rec.state = 'loading';
   rec.promise = new Promise((resolve, reject) => {
     const tag = document.createElement('script');
-    tag.src = BORDER.dir + 'borders-' + id + '.js';
+    tag.src = dataUrl('borders-' + id + '.js');
     tag.async = true;
     tag.onload = () => {
       const payload = window['TP_BORDERS_' + id.toUpperCase()];
@@ -15159,7 +15165,7 @@ function loadLabels(level) {
   if (!rec || rec.state === 'ready' || rec.state === 'loading') return;
   rec.state = 'loading';
   const tag = document.createElement('script');
-  tag.src = BORDER.dir + 'labels-' + level + '.js';
+  tag.src = dataUrl('labels-' + level + '.js');
   tag.async = true;
   tag.onload = () => {
     const rows = window['TP_LABELS_' + level.toUpperCase()];
