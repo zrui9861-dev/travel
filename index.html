@@ -757,6 +757,18 @@ kbd{font-family:var(--ui);font-size:10.5px;border:1px solid var(--line);border-b
 @media(max-width:640px){
   .experience{min-height:600px}
   .planet-list{display:none}
+  /* the hint under the portal is duplicated by the cue at the foot of the screen,
+     and at this width the title grows up into it */
+  .portal-next{display:none}
+  /* the legend must not wrap to three rows: one scrolling row instead */
+  .globe-legend{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;
+    left:10px;right:10px;transform:none;padding-bottom:2px;scrollbar-width:none;
+    -webkit-overflow-scrolling:touch}
+  .globe-legend::-webkit-scrollbar{display:none}
+  .globe-legend .legend-chip{flex:0 0 auto}
+  /* thumb-sized controls */
+  .layer-btn{padding:7px 11px;font-size:11px}
+  .globe-zoom button{width:36px;height:36px;font-size:17px}
   .dest-strip{display:flex}
   .portal-wrap{top:41%;width:min(250px,62vw)}
   .portal-heading{font-size:14px;margin-bottom:9px}
@@ -764,7 +776,11 @@ kbd{font-family:var(--ui);font-size:10.5px;border:1px solid var(--line);border-b
   .portal{border-radius:70px}
   .planet-content{left:18px;right:18px;bottom:16px;display:block}
   /* stacked layout: give the title a line box that actually contains its glyphs */
-  .planet-content h1{font-size:clamp(56px,17.4vw,104px);line-height:.95;margin-bottom:18px;white-space:nowrap}
+  .planet-content h1{font-size:clamp(40px, min(var(--title-fs, 104px), 15.6vw), 104px);
+    line-height:.95;margin-bottom:18px;white-space:nowrap}
+  /* a name too long for one line at this width: wrap it rather than run off-screen */
+  .planet-content h1.is-long{white-space:normal;font-size:clamp(26px, 9.4vw, 52px);
+    line-height:1.04;letter-spacing:-.01em;max-height:2.2em;overflow:hidden}
   :root{--title-x:-6px}
   .planet-content .col{width:100%}
   .planet-content dl{width:100%;font-size:12.5px}
@@ -3002,22 +3018,26 @@ function renderCountryMap(c, id, cx, cy, w, h, alpha) {
   // the country's name, so the window is unmistakably "the map of X".
   // Shrink to fit rather than relying on maxWidth, and keep it clear of the
   // rounded bottom edge.
-  const up = LANG === 'zh' ? d.name.zh : d.name.en.toUpperCase();
-  let fs = Math.max(10, Math.min(w, h) * 0.055);
-  const family = '"Playfair Display","Noto Serif SC","Songti SC",Georgia,serif';
-  c.font = '600 ' + fs.toFixed(1) + 'px ' + family;
-  while (fs > 8 && c.measureText(up).width > w * 0.78) {
-    fs -= 0.5;
+  // A small portal means a phone, where the big title sits right underneath: the
+  // in-map name would only repeat it and crowd the shape.
+  if (w >= 300) {
+    const up = LANG === 'zh' ? d.name.zh : d.name.en.toUpperCase();
+    let fs = Math.max(10, Math.min(w, h) * 0.055);
+    const family = '"Playfair Display","Noto Serif SC","Songti SC",Georgia,serif';
     c.font = '600 ' + fs.toFixed(1) + 'px ' + family;
+    while (fs > 8 && c.measureText(up).width > w * 0.78) {
+      fs -= 0.5;
+      c.font = '600 ' + fs.toFixed(1) + 'px ' + family;
+    }
+    c.textAlign = 'center';
+    c.textBaseline = 'alphabetic';
+    c.lineJoin = 'round';
+    c.lineWidth = Math.max(2.4, fs * 0.22);
+    c.strokeStyle = 'rgba(5,9,15,.9)';
+    c.strokeText(up, cx, cy + h / 2 - fs * 1.5);
+    c.fillStyle = 'rgba(255,250,240,.92)';
+    c.fillText(up, cx, cy + h / 2 - fs * 1.5);
   }
-  c.textAlign = 'center';
-  c.textBaseline = 'alphabetic';
-  c.lineJoin = 'round';
-  c.lineWidth = Math.max(2.4, fs * 0.22);
-  c.strokeStyle = 'rgba(5,9,15,.9)';
-  c.strokeText(up, cx, cy + h / 2 - fs * 1.5);
-  c.fillStyle = 'rgba(255,250,240,.92)';
-  c.fillText(up, cx, cy + h / 2 - fs * 1.5);
   c.restore();
 }
 
@@ -4641,9 +4661,19 @@ function render(first) {
   const titleText = d.name[LANG];
   const tn = titleText.length;
   els.title.textContent = LANG === 'zh' ? titleText : titleText.toUpperCase();
-  document.documentElement.style.setProperty('--title-fs', (LANG === 'zh'
+  const lengthFs = LANG === 'zh'
     ? (tn <= 4 ? 178 : tn <= 6 ? 142 : tn <= 8 ? 116 : 94)
-    : (tn <= 7 ? 178 : tn <= 10 ? 152 : tn <= 14 ? 118 : tn <= 19 ? 92 : 74)) + 'px');
+    : (tn <= 7 ? 178 : tn <= 10 ? 152 : tn <= 14 ? 118 : tn <= 19 ? 92 : 74);
+  // never wider than the viewport: roughly 0.62em per upper-case glyph in this face,
+  // leaving a little margin. Whatever still will not fit is allowed to wrap below.
+  const fitFs = Math.max(26, Math.floor((innerWidth * 0.92) / Math.max(1, tn * 0.62)));
+  document.documentElement.style.setProperty('--title-fs', Math.min(lengthFs, fitFs) + 'px');
+
+  // measured after layout: if one line does not fit, wrap it instead of overflowing
+  els.title.classList.remove('is-long');
+  requestAnimationFrame(() => {
+    if (els.title.scrollWidth > els.title.clientWidth + 2) els.title.classList.add('is-long');
+  });
 
   // The window holds this region's own landmark. Where a click leads is a quiet
   // hint underneath, never the thing shown inside the window.
@@ -15805,7 +15835,12 @@ function wireEvents() {
   let rt = 0;
   window.addEventListener('resize', () => {
     clearTimeout(rt);
-    rt = setTimeout(() => { resizeCanvas(); placeThumb(); globeResize(); }, 120);
+    rt = setTimeout(() => {
+      resizeCanvas();
+      placeThumb();
+      globeResize();
+      render(true);          // re-fits the title after an orientation change
+    }, 120);
   });
 }
 
