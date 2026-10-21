@@ -70,7 +70,7 @@
   font-synthesis:none;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
 }
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;height:100dvh;overflow:hidden;background:var(--bg)}
+html,body{margin:0;width:100%;height:100%;height:100dvh;overflow:hidden;overscroll-behavior-y:none;background:var(--bg)}
 body{font-size:16px}
 button{font:inherit;color:inherit}
 a{color:inherit}
@@ -1036,8 +1036,13 @@ kbd{font-family:var(--ui);font-size:10.5px;border:1px solid var(--line);border-b
 
 @media(max-width:640px){
   .header{top:calc(clamp(18px,3.1vh,28px) + var(--safe-t))}
-  .planet-content{bottom:calc(16px + var(--safe-b))}
-  .drawer-cue{bottom:calc(9px + var(--safe-b))}
+  /* the cue below is a real button now, so the content has to clear it */
+  .planet-content{bottom:calc(50px + var(--safe-b))}
+  /* a thumb target, not a line of 9.5px text on the home indicator */
+  .drawer-cue{bottom:calc(5px + var(--safe-b));min-height:34px;min-width:min(250px,78vw);
+    padding:9px 18px;font-size:11px;letter-spacing:.12em;border-radius:11px;
+    color:rgba(255,255,255,.86);background:rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.15);backdrop-filter:blur(6px)}
   .sheet-head{padding-top:calc(11px + var(--safe-t))}
   .spot-panel{padding-bottom:var(--safe-b)}
   .spot-list{padding-bottom:calc(14px + var(--safe-b))}
@@ -14182,11 +14187,18 @@ function renderDrawer() {
   });
 }
 
+let drawerOpenedAt = 0;
 function openDrawer(open) {
   const d = $('places-drawer');
   if (!d) return;
   const on = open === undefined ? !d.classList.contains('is-open') : !!open;
-  if (on) renderDrawer();
+  // a tap that just opened it must not be able to close it again: on a phone the click
+  // that follows the touch lands on the drawer that the touch itself revealed
+  if (!on && Date.now() - drawerOpenedAt < 500) return;
+  if (on) {
+    drawerOpenedAt = Date.now();
+    renderDrawer();
+  }
   d.classList.toggle('is-open', on);
   d.setAttribute('aria-hidden', String(!on));
   const cueEl = $('drawer-cue');
@@ -14514,7 +14526,7 @@ function wireSheet() {
     const t = e.changedTouches && e.changedTouches[0];
     if (!t) return;
     const dy = t.clientY - swipeY, dx = Math.abs(t.clientX - swipeX);
-    if (Math.abs(dy) < 55 || dx > Math.abs(dy) * 1.5) return;   // not a vertical swipe
+    if (Math.abs(dy) < 44 || dx > Math.abs(dy) * 1.5) return;   // not a vertical swipe
     const d = $('places-drawer');
     if (!d) return;
     const open = d.classList.contains('is-open');
