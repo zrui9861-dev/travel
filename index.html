@@ -2911,6 +2911,64 @@ const SHAPES = {
 const B36 = '0123456789abcdefghijklmnopqrstuvwxyz';
 const SHAPE_CACHE = {};
 
+/* Detailed outlines, one small file per country, fetched as the region changes. */
+const GEO = Object.create(null);
+const GEO_STATE = Object.create(null);
+const GEO_DIR = 'data/geo/';
+
+/* The border encoding, decoded back to lon/lat rings. */
+function decodeGeo(payload) {
+  const rings = [];
+  const chunks = payload.split('|');
+  for (let ci = 0; ci < chunks.length; ci++) {
+    const chunk = chunks[ci];
+    if (chunk.length < 8) continue;
+    const pts = [];
+    let i = 0, x = 0, y = 0, first = true;
+    while (i + 2 <= chunk.length) {
+      if (first) {
+        x = b36val(chunk, i, 3) - 18000; i += 3;
+        y = b36val(chunk, i, 3) - 9000; i += 3;
+        first = false;
+      } else {
+        x += b36val(chunk, i, 2) - 648; i += 2;
+        y += b36val(chunk, i, 2) - 648; i += 2;
+      }
+      pts.push([x / 100, y / 100]);
+    }
+    if (pts.length > 2) rings.push(pts);
+  }
+  return rings;
+}
+
+function loadRegionGeo(code) {
+  if (!code || GEO[code] || GEO_STATE[code]) return;
+  GEO_STATE[code] = 'loading';
+  const tag = document.createElement('script');
+  tag.src = GEO_DIR + code + '.js';
+  tag.async = true;
+  tag.onload = () => {
+    const payload = window['TP_GEO_' + code];
+    const rings = payload ? decodeGeo(payload) : [];
+    if (!rings.length) { GEO_STATE[code] = 'error'; return; }
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const r of rings) {
+      for (const p of r) {
+        if (p[0] < x0) x0 = p[0];
+        if (p[0] > x1) x1 = p[0];
+        if (p[1] < y0) y0 = p[1];
+        if (p[1] > y1) y1 = p[1];
+      }
+    }
+    GEO[code] = { bb: [x0, y0, x1, y1], rings: rings };
+    GEO_STATE[code] = 'ready';
+    MAP_CACHE.clear();          // the geometry this map was built from has changed
+    render();
+  };
+  tag.onerror = () => { GEO_STATE[code] = 'error'; };
+  document.head.appendChild(tag);
+}
+
 /* The twelve hand-built regions use word ids (japan, france, ...) rather than
    w-xx, so they need an explicit country code for the map lookup. */
 const REGION_ISO = {
@@ -2923,6 +2981,8 @@ function regionIso(id) {
 }
 
 function countryShape(code) {
+  // a detailed outline, once this country's file has arrived
+  if (GEO[code]) return GEO[code];
   if (code in SHAPE_CACHE) return SHAPE_CACHE[code];
   const raw = SHAPES[code];
   let out = null;
@@ -3087,6 +3147,9 @@ function renderCountryMap(c, id, cx, cy, w, h, alpha) {
       if (bb[3] < viewLat0 - 1 || bb[1] > viewLat1 + 1) continue;
       near.push(other);
     }
+    // neighbours are drawn for context, so fetch their detailed outlines too; the coarse
+    // shape holds the place until each one arrives and the map redraws
+    for (let i = 0; i < near.length && i < 6; i++) loadRegionGeo(near[i]);
     for (let i = 0; i < near.length; i++) {
       const s2 = countryShape(near[i]);
       if (!s2 || !s2.rings.length) continue;
@@ -4781,6 +4844,8 @@ function buildMeta() {
 function render(first) {
   const d = DEST[current];
   experience.dataset.planet = current;
+  // ask for this country's detailed outline; the inline shape shows until it lands
+  loadRegionGeo(regionIso(current));
 
   // two hundred country names cannot all fit at the display size, and the title
   // should follow the interface language
