@@ -661,7 +661,11 @@ kbd{font-family:var(--ui);font-size:10.5px;border:1px solid var(--line);border-b
   .tabs button{padding:7px 12px;font-size:12.5px}
   .pane.is-on[data-pane="explore"]{flex-direction:column;overflow:hidden;min-height:0}
   .globe-wrap{flex:0 0 44vh;min-height:240px}
-  .spot-panel{flex:1 1 auto;border-left:0;border-top:1px solid var(--line)}
+  /* the panel is the scroller: the card can be taller than the space left under the
+     globe, which left the place list with no height at all */
+  .spot-panel{flex:1 1 auto;border-left:0;border-top:1px solid var(--line);
+    overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  .spot-list{overflow:visible;flex:0 0 auto;min-height:0}
   .spot-card h4{font-size:22px}
   .globe-legend{bottom:30px;gap:5px}
   .legend-chip{font-size:10px;padding:4px 8px}
@@ -14089,15 +14093,24 @@ function openDrawer(open) {
   }
 }
 
-/* Bring `el` into view inside `box` by changing only box.scrollTop. Returns false when
-   there is nothing to do — including when the box is hidden, which is the phone case for
-   the destination rail. */
+/* Bring `el` into view by scrolling whichever ancestor actually scrolls.
+
+   Never touches the page or the sheet: on a phone the globe and the place panel are
+   siblings, and scrolling an outer container is what used to push the globe off screen.
+   Returns false when nothing needs to move — including when the ancestor is hidden,
+   which is the phone case for the destination rail. */
 function scrollWithin(box, el, pad) {
   if (!box || !el) return false;
-  if (!box.clientHeight || !box.clientHeight) return false;
+  if (!box.clientHeight) return false;
   pad = pad === undefined ? 8 : pad;
   const b = box.getBoundingClientRect();
   const r = el.getBoundingClientRect();
+  // taller than the box: show its top, so the title comes first and the rest is a
+  // natural scroll away rather than landing the reader at the bottom of it
+  if (r.height > b.height - pad * 2) {
+    box.scrollTop += (r.top - b.top) - pad;
+    return true;
+  }
   if (r.top < b.top + pad) {
     box.scrollTop -= (b.top - r.top) + pad;
     return true;
@@ -14105,6 +14118,21 @@ function scrollWithin(box, el, pad) {
   if (r.bottom > b.bottom - pad) {
     box.scrollTop += (r.bottom - b.bottom) + pad;
     return true;
+  }
+  return false;
+}
+
+/* Walk up from `el` to the nearest container that can actually scroll, and use it. */
+function scrollNear(el, pad) {
+  if (!el) return false;
+  let node = el.parentElement;
+  while (node && node !== document.body && node !== document.documentElement) {
+    const st = getComputedStyle(node);
+    if ((st.overflowY === 'auto' || st.overflowY === 'scroll') &&
+        node.scrollHeight > node.clientHeight + 1) {
+      return scrollWithin(node, el, pad);
+    }
+    node = node.parentElement;
   }
   return false;
 }
@@ -14120,9 +14148,11 @@ function globeFocus(i, quiet) {
   globe.tLat = s.lat;
   renderSpotCard(s);
   if (!quiet) renderSpotList(list);
-  // Scroll the list itself, never the page: scrollIntoView also moves outer
-  // scrollers, which on a phone pushed the globe half off the screen.
-  scrollWithin($('spot-list'), document.querySelector('.spot-item[data-i="' + i + '"]'));
+  // Bring the selected place into view by scrolling only its own container. On a phone
+  // the detail card is what changed, so that is what to reveal; on a desktop the card is
+  // always visible and the list item underneath it is the one that moves.
+  const item = document.querySelector('.spot-item[data-i="' + i + '"]');
+  if (!scrollNear($('spot-card'))) scrollNear(item);
 }
 
 function refreshSheetText() {
