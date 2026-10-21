@@ -2911,6 +2911,9 @@ const SHAPES = {
 const B36 = '0123456789abcdefghijklmnopqrstuvwxyz';
 const SHAPE_CACHE = {};
 
+/* Territories the atlas draws as part of a country rather than beside it. */
+const PART_OF = { TW: 'CN' };
+
 /* Detailed outlines, one small file per country, fetched as the region changes. */
 const GEO = Object.create(null);
 const GEO_STATE = Object.create(null);
@@ -3141,6 +3144,9 @@ function renderCountryMap(c, id, cx, cy, w, h, alpha) {
     const near = [];
     for (const other in SHAPES) {
       if (other === code) continue;
+      // a territory that belongs to this country is already inside its fill; drawing it
+      // as a neighbour paints grey over the shape that belongs to the country on screen
+      if (PART_OF[other] === code) continue;
       const bb = shapeBB(other);
       if (!bb) continue;
       if (bb[2] < viewLon0 - 1 || bb[0] > viewLon1 + 1) continue;
