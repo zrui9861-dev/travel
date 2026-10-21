@@ -70,7 +70,7 @@
   font-synthesis:none;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
 }
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg)}
+html,body{margin:0;width:100%;height:100%;height:100dvh;overflow:hidden;background:var(--bg)}
 body{font-size:16px}
 button{font:inherit;color:inherit}
 a{color:inherit}
@@ -1010,6 +1010,30 @@ kbd{font-family:var(--ui);font-size:10.5px;border:1px solid var(--line);border-b
   .fp-actions{flex-direction:column;align-items:stretch}
   .fp-save,.fp-ghost{width:100%;text-align:center}
   .fp-photo{justify-content:flex-start}
+}
+/* ==========================================================================
+   REAL DEVICES — dynamic viewport height and safe-area insets
+   --------------------------------------------------------------------------
+   An iframe can rehearse the width and the media queries, but not the browser
+   toolbar (which shrinks the visible height) or the notch and home bar. dvh follows
+   the toolbar; the insets keep the header and the bottom row off the hardware.
+   ========================================================================== */
+:root{
+  --safe-t:env(safe-area-inset-top,0px);
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --safe-l:env(safe-area-inset-left,0px);
+  --safe-r:env(safe-area-inset-right,0px);
+}
+
+@media(max-width:640px){
+  .header{top:calc(clamp(18px,3.1vh,28px) + var(--safe-t))}
+  .planet-content{bottom:calc(16px + var(--safe-b))}
+  .drawer-cue{bottom:calc(9px + var(--safe-b))}
+  .sheet-head{padding-top:calc(11px + var(--safe-t))}
+  .spot-panel{padding-bottom:var(--safe-b)}
+  .spot-list{padding-bottom:calc(14px + var(--safe-b))}
+  /* the sheet is full-bleed to the edges, so only its content is inset */
+  .sheet{padding-left:var(--safe-l);padding-right:var(--safe-r)}
 }
 </style>
 </head>
